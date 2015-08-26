@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+     <link href="css/nv.d3.min.css" rel="stylesheet" type="text/css">
+    <script src="js/jquery-1.11.3.min.js" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.2/d3.min.js" charset="utf-8"></script>
+    <script src="js/nv.d3.min.js"></script>
+    <script src="js/stream_layers.js"></script>
+
+    <style>
+        text {
+            font: 12px sans-serif;
+        }
+        svg {
+            display: block;
+        }
+        html, body,svg{
+            margin: 0px;
+            padding: 0px;
+            height: 100%;
+            width: 100%;
+        }
+		#reading,#writing,#maths,#progress1,#progress2{
+            margin: 0px;
+            padding: 0px;
+            height: 50%;
+            width: 80%;
+        }
+		#progress2 svg{margin-left:50px; width:103%;}
+		#progress2 path, #progress2 line {
+    fill: none;
+    stroke: #534da5;
+}
+h2 {
+    margin-left: 54px;
+    font-size: 34px;
+    margin-bottom: 0px;
+}
+.legend-p-2{text-align:center; margin-top: -7%;}
+.legend-p-2>hr {
+    display: inline-block;
+    width: 36px;
+    border: 4px solid;
+    margin-bottom: 0px;
+    margin-left: 15px;
+    margin-right: 5px;
+}
+hr.Reading{border-color: #0e5ba9;}hr.Wriring{border-color: #ca2b54;}hr.Maths{border-color: #92cd01;}
+hr.Average{border-color: #534da5;}
+hr.Average {
+    border: 3px solid #534da5;
+    margin-bottom: 2px;
+}
+    </style>
+</head>
+<body>
+<h2>Reading</h2>
+<div id="reading" class='with-3d-shadow with-transitions'>
+    <svg></svg>
+</div>
+<h2>Wriring</h2>
+<div id="writing" class='with-3d-shadow with-transitions'>
+    <svg></svg>
+</div>
+<h2>Maths</h2>
+<div id="maths" class='with-3d-shadow with-transitions'>
+    <svg></svg>
+</div>
+<h2>Progress 1</h2>
+<div id="progress1" class='with-3d-shadow with-transitions'>
+    <svg></svg>
+</div>
+<h2>Progress 2</h2>
+<div id="progress2" class='with-3d-shadow with-transitions'>
+</div>
+
+<script>
+var graph_reading  =  new Array(new Array(),new Array());
+var graph_writing  =  new Array(new Array(),new Array());
+var graph_maths  =  new Array(new Array(),new Array());
+
+var graph_progress1  =  new Array(new Array(),new Array(),new Array(),new Array());
+var graph_progress2  =  new Array(new Array(),new Array(),new Array(),new Array());
+
+var html = $.ajax({ url: "example_data.json",async: false}).responseText;
+var data = $.parseJSON(html);
+
+	var data_reading = data[0]['reading'];
+	var i = 0;
+	for(var key in data_reading){
+		graph_reading[0][i] = {"label" : transformLabel(key) , "value" : parseInt(data_reading[key]['exp_avg'])};
+		graph_reading[1][i] = {"label" : transformLabel(key) , "value" : (parseInt(data_reading[key]['autumn']['ind'])+parseInt(data_reading[key]['spring']['ind'])+parseInt(data_reading[key]['summer']['ind']))};
+		i++;
+	}
+
+	var data_writing = data[0]['writing'];
+	var i = 0;
+	for(var key in data_writing){
+		graph_writing[0][i] = {"label" : transformLabel(key) , "value" : data_writing[key]['exp_avg']};
+		graph_writing[1][i] = {"label" : transformLabel(key) , "value" : (parseInt(data_writing[key]['autumn']['ind'])+parseInt(data_writing[key]['spring']['ind'])+parseInt(data_writing[key]['summer']['ind']))};
+		i++;
+	}
+
+	var data_maths = data[0]['maths'];
+	var i = 0;
+	for(var key in data_maths){
+		graph_maths[0][i] = {"label" : transformLabel(key) , "value" : data_maths[key]['exp_avg']};
+		graph_maths[1][i] = {"label" : transformLabel(key) , "value" : (parseInt(data_maths[key]['autumn']['ind'])+parseInt(data_maths[key]['spring']['ind'])+parseInt(data_maths[key]['summer']['ind']))};
+		i++;
+	}
+
+	for(var i = 0;i<graph_reading[0].length;i++){
+		var  key = graph_reading[0][i]['label'];
+		graph_progress1[0][i] = {"label" : transformLabel(key) , "value" : (graph_maths[1][i]['value']+graph_writing[1][i]['value']+graph_reading[1][i]['value'])/3};
+		graph_progress1[1][i] = {"label" : transformLabel(key) , "value" : graph_maths[1][i]['value']};
+		graph_progress1[2][i] = {"label" : transformLabel(key) , "value" : graph_writing[1][i]['value']};
+		graph_progress1[3][i] = {"label" : transformLabel(key) , "value" : graph_reading[1][i]['value']};
+	}
+
+
+	var data_progress2 = new Array();
+	var data_progress2_label = new Array();
+	for(var key in data_writing){
+		data_progress2.push(data_maths[key]['spring']['ind']);
+		data_progress2.push(data_writing[key]['spring']['ind']);
+		data_progress2.push(data_reading[key]['spring']['ind']);
+
+		data_progress2.push(data_maths[key]['summer']['ind']);
+		data_progress2.push(data_writing[key]['summer']['ind']);
+		data_progress2.push(data_reading[key]['summer']['ind']);
+
+		data_progress2.push(data_maths[key]['autumn']['ind']);
+		data_progress2.push(data_writing[key]['autumn']['ind']);
+		data_progress2.push(data_reading[key]['autumn']['ind']);
+		data_progress2_label.push(transformLabel(key));
+	}
+
+
+    var garph = {
+		"reading":[
+			{
+				key: 'Expected Average',
+				color: "#554ead",
+				values: graph_reading[0].reverse()
+			},
+			{
+				key: 'Reading',
+				color: "#0e5ba9",
+				values: graph_reading[1].reverse()
+			}
+		],
+		"writing":[
+			{
+				key: 'Expected Average',
+				color: "#534da5",
+				values: graph_writing[0].reverse()
+			},
+			{
+				key: 'Writing',
+				color: "#ca2b54",
+				values: graph_writing[1].reverse()
+			}
+		],
+		"maths":[
+			{
+				key: 'Expected Average',
+				color: "#4346a3",
+				values: graph_maths[0].reverse()
+			},
+			{
+				key: 'Maths',
+				color: "#92cd01",
+				values: graph_maths[1].reverse()
+			}
+		],
+		"progress1":[
+			{
+				key: 'Expected Average',
+				color: "#4346a3",
+				values: graph_progress1[0].reverse()
+			},
+			{
+				key: 'Maths',
+				color: "#92cd01",
+				values: graph_progress1[1].reverse()
+			},
+			{
+				key: 'Writing',
+				color: "#ca2b54",
+				values: graph_progress1[2].reverse()
+			},
+			{
+				key: 'Reading',
+				color: "#0e5ba9",
+				values: graph_progress1[3].reverse()
+			}
+		]
+	}
+
+	var chart_reading;
+    nv.addGraph(function() {
+        chart_reading = nv.models.multiBarHorizontalChart()
+			.groupSpacing(0.2)
+
+            .x(function(d) { return d.label  })
+            .y(function(d) { return d.value })
+			.valueFormat(d3.format('d'))
+            .duration(250)
+            .margin({left: 100})
+			.showValues(true)
+			.showControls(false)
+            .stacked(false);
+
+        chart_reading.yAxis.tickFormat(d3.format('d'));
+
+
+        d3.select('#reading svg')
+            .datum(garph["reading"])
+            .call(chart_reading);
+
+        nv.utils.windowResize(chart_reading.update);
+
+        chart_reading.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
+        chart_reading.state.dispatch.on('change', function(state){
+            nv.log('state', JSON.stringify(state));
+        });
+        return chart_reading;
+    });
+	var chart_writing;
+    nv.addGraph(function() {
+        chart_writing = nv.models.multiBarHorizontalChart()
+			.groupSpacing(0.2)
+            .x(function(d) { return  d.label })
+            .y(function(d) { return d.value })
+			.valueFormat(d3.format('d'))
+            .duration(250)
+            .margin({left: 100})
+			.showValues(true)
+			.showControls(false)
+            .stacked(false);
+
+        chart_writing.yAxis.tickFormat(d3.format('d'));
+
+
+
+		d3.select('#writing svg')
+            .datum(garph["writing"])
+            .call(chart_writing);
+
+        nv.utils.windowResize(chart_writing.update);
+
+        chart_writing.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
+        chart_writing.state.dispatch.on('change', function(state){
+            nv.log('state', JSON.stringify(state));
+        });
+        return chart_writing;
+    });
+
+	var chart_maths;
+    nv.addGraph(function() {
+        chart_maths = nv.models.multiBarHorizontalChart()
+			.groupSpacing(0.2)
+            .x(function(d) { return d.label  })
+            .y(function(d) { return d.value })
+			.valueFormat(d3.format('d'))
+            .duration(250)
+            .margin({left: 100})
+			.showValues(true)
+			.showControls(false)
+            .stacked(false);
+
+        chart_maths.yAxis.tickFormat(d3.format('d'));
+
+		d3.select('#maths svg')
+            .datum(garph["maths"])
+            .call(chart_maths);
+
+        nv.utils.windowResize(chart_maths.update);
+
+        chart_maths.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
+        chart_maths.state.dispatch.on('change', function(state){
+            nv.log('state', JSON.stringify(state));
+        });
+        return chart_maths;
+    });
+
+
+	var chart_progress1;
+    nv.addGraph(function() {
+        chart_progress1 = nv.models.multiBarHorizontalChart()
+			.groupSpacing(0.2)
+            .x(function(d) { return d.label })
+            .y(function(d) { return d.value })
+			.valueFormat(d3.format('d'))
+            .duration(250)
+            .margin({left: 100})
+			.showValues(true)
+			.showControls(false)
+            .stacked(false);
+
+        chart_progress1.yAxis.tickFormat(d3.format('d'));
+
+
+		d3.select('#progress1 svg')
+            .datum(garph["progress1"])
+            .call(chart_progress1);
+
+        nv.utils.windowResize(chart_progress1.update);
+
+        chart_progress1.dispatch.on('stateChange', function(e) { nv.log('New State:', JSON.stringify(e)); });
+        chart_progress1.state.dispatch.on('change', function(state){
+            nv.log('state', JSON.stringify(state));
+        });
+        return chart_progress1;
+    });
+
+progress_two(data_progress2);
+window.onresize = function(event) {
+	document.getElementById('progress2').innerHTML = '';
+    progress_two(data_progress2);
+};
+function progress_two(data_progress2){
+	var dataset = data_progress2;
+	var color_bar = [ "#0e5ba9","#ca2b54", "#92cd01"];
+	var w = window.innerWidth*0.8;
+	var h = window.innerHeight /3;
+	var zx = 8;
+	var barPadding = 5;
+	var xScale = d3.scale.linear()
+                     .domain([0, dataset.length])
+                     .range([0, w]);
+	var yScale = d3.scale.linear()
+                     .domain([0, Math.max.apply(null, dataset)+5])
+                     .range([0, h]);
+
+	var svg = d3.select("#progress2")
+            .append("svg")
+            .attr("width", w / dataset.length - barPadding)
+            .attr("height", h);
+	svg.selectAll("rect")
+	    .data(dataset)
+		.enter()
+		.append("rect")
+		.attr("x", function(d, i) {
+			return xScale(i)+15;
+		})
+		.attr("y", function(d) {
+			return h - yScale(d)-15;
+		})
+		.attr("width", function(d, i) {
+			if((i+1)%3==0)
+				return w / dataset.length - barPadding;
+			else
+				return w / dataset.length;
+		})
+		.attr("height", function(d) {
+			return yScale(d);
+		})
+		.attr("fill", function(d,i) {
+			return color_bar[i%3];
+		});
+
+	svg.selectAll("text")
+		.data(dataset)
+		.enter()
+		.append("text")
+		.text(function(d) {
+			return d;
+		})
+		.attr("text-anchor", "middle")
+		.attr("x", function(d, i) {
+			return i * (w / dataset.length) + (w / dataset.length - barPadding) / 2+15;
+		})
+		.attr("y", function(d) {
+			return h - yScale(d)-20;
+		})
+		.attr("font-family", "sans-serif")
+		.attr("font-size", "8px")
+		.attr("fill", "black");
+
+
+	var avg = new Array();
+	for(var i = 0; i<dataset.length;i+=3){
+		var t = (parseInt(dataset[i])+parseInt(dataset[i+1])+parseInt(dataset[i+2]))/3;
+		avg.push(t);
+	}
+	var line = d3.svg.line()
+            .x(function(d,i){return xScale((i+0.5)*3)+15;})
+            .y(function(d,i){return h - yScale(d)-15;});
+
+	var lineY = d3.svg.line()
+            .x(function(d,i){return 15;})
+            .y(function(d,i){return h - yScale(d);});
+	var lineX = d3.svg.line()
+            .x(function(d,i){return xScale((i+0.25)*3.2);})
+            .y(function(d,i){return h - yScale(0)-15;});
+
+
+	svg.append("g").append("path")
+		.attr("d", line(avg))
+		.style("stroke", "#534da5")
+		.style("stroke-width", 3);
+
+	svg.append("g").append("path")
+		.attr("d", lineY(dataset))
+		.style("stroke", "#000")
+		.style("stroke-width", 2);
+	svg.append("g").append("path")
+		.attr("d", lineX(avg))
+		.style("stroke", "#000")
+		.style("stroke-width", 2);
+
+	svg.selectAll("svg")
+		.data(data_progress2_label)
+		.enter()
+		.append("text")
+		.text(function(d) {
+			return d;
+		})
+		.attr("text-anchor", "middle")
+		.attr("x", function(d, i) {
+			return i * (w / data_progress2_label.length) + (w / data_progress2_label.length - barPadding) / 2+15;
+		})
+		.attr("y", function(d) {
+			return h;
+		})
+		.attr("font-family", "sans-serif")
+		.attr("font-size", "8px")
+		.attr("fill", "black");
+	var labelY = new Array();
+	for(var i = 0; i< Math.max.apply(null, dataset)+10; i +=5 ){
+		labelY.push(i);
+	}
+	svg.selectAll("svg")
+		.data(labelY)
+		.enter()
+		.append("text")
+		.text(function(d) {
+			return d;
+		})
+		.attr("text-anchor", "middle")
+		.attr("x", function(d, i) {
+			return 7;
+		})
+		.attr("y", function(d) {
+			return h - yScale(d)-15;
+		})
+		.attr("font-family", "sans-serif")
+		.attr("font-size", "8px")
+		.attr("fill", "black");
+	document.getElementById('progress2').innerHTML += '<div class="legend-p-2"><hr class="Reading">Reading<hr class="Wriring">Wriring<hr class="Maths">Maths<hr class="Average">Expected Average</div>';
+}
+function transformLabel(data){
+	data = data.charAt(0).toUpperCase() + data.substr(1)
+	return data.replace(/([0-9]{1})/g, " $1");
+}
+</script>
+</body>
+</html>
